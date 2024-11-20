@@ -14,14 +14,9 @@ enum LocationPermissionStatus {
   serviceDisabled,
 }
 
-Future<LocationPermissionStatus> getLocationPermission(BuildContext context) async {
+Future<LocationPermissionStatus> getLocationPermission() async {
 
   if (!await Permission.location.serviceStatus.isEnabled) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Center(child: Text('Location services are OFF. Please enable them.')),
-      ),
-    );
     return LocationPermissionStatus.serviceDisabled;
   }
 

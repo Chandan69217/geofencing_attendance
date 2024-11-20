@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geofencing_api/geofencing_api.dart';
-import 'package:geofencing_attendance/utilities/handle_location_permission.dart';
+import 'package:geofencing_attendance/background_service/Geofencing_services.dart';
+import 'package:geofencing_attendance/utilities/permission_handler.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'google_map/google_map.dart';
-
 const _url = 'https://github.com/Chandan69217/geofencing_attendance.git';
 
 class TimeStamp {
@@ -13,7 +15,12 @@ class TimeStamp {
   TimeStamp({required this.time, required this.type});
 }
 
-void main() => runApp(const MyApp());
+void main()async{
+    WidgetsFlutterBinding.ensureInitialized();
+    // Permission.notification.request();
+    // await GeofencingService.startService();
+  runApp(const MyApp());
+}
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -26,7 +33,6 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-
     // GeofencingApi(context).setupGeofencing();
   }
 
@@ -54,6 +60,8 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   String btnStatusTxt = 'Punch Out';
   Color btnColor = Colors.red;
+  static const _methodChannelService = MethodChannel('com.geofencing_attendance.service');
+  static const _methodChannelGeofenceEvent = MethodChannel('com.geofencing_attendance.geofenceEvent');
   final Set<GeofenceRegion> _region = {
     GeofenceCircularRegion(
       id: 'DotPlus',
@@ -66,9 +74,20 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    initGeofencing();
+    //initGeofencing();
+    _listenGeofeceEvents();
   }
 
+  Future<void> _listenGeofeceEvents() async {
+    _methodChannelGeofenceEvent.setMethodCallHandler((call) async{
+      print('called');
+      if(call.method == "geofenceEvent"){
+        setState(() {
+          btnStatusTxt = call.arguments;
+        });
+      }
+    });
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -76,6 +95,8 @@ class _MyHomePageState extends State<MyHomePage> {
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           title: Text(widget.title!),
           actions: <Widget>[
+            IconButton(onPressed: (){ _methodChannelService.invokeMethod('start');}, icon: Icon(Icons.play_circle_outline)),
+            IconButton(onPressed: (){_methodChannelService.invokeMethod('stop');}, icon: Icon(Icons.stop_circle_outlined)),
             IconButton(
               icon: const Icon(Icons.info_outline),
               onPressed: _showInfoDialog,
@@ -215,7 +236,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void initGeofencing() async {
-    var status = await getLocationPermission(context);
+    var status = await getLocationPermission();
     if (status == LocationPermissionStatus.granted) {
       _geofencingSetup();
       _geofencingStart();
